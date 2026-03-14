@@ -1,0 +1,8 @@
+[project]
+name = "cct-ds-challenge"
+version = "0.1.0"
+description = "City of Cape Town Data Science Code Challenge"
+requires-python = ">=3.12,<3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
