@@ -37,6 +37,14 @@ Or individually:
 ./scripts/run_cv.sh
 ./scripts/run_sr.sh
 
+## Raw challenge data
+Raw challenge data is not committed to this repository. It is downloaded programmatically from the public City of Cape Town challenge S3 bucket.
+
+The challenge README states that the provided AWS credentials do not grant special access beyond what is already anonymously available, so this repository intentionally uses public download only.
+
+Run:
+./scripts/download_data.sh
+
 ## Repository structure
 
 data  

@@ -6,3 +6,4 @@ requests
 geopandas
 h3
 pytest
+requests
