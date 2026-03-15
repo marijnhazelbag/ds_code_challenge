@@ -7,3 +7,7 @@ geopandas
 h3
 pytest
 requests
+scikit-learn
+torch
+torchvision
+PyYAML
