@@ -6,7 +6,6 @@ __pycache__
 
 data/raw
 data/external/1dd_buildings.csv.gz
-data/processed
 reports/*
 !reports/cv/
 reports/cv/*
