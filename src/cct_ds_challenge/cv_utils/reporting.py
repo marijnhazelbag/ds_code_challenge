@@ -201,20 +201,42 @@ def save_html_report(
             img {{ max-width: 100%; height: auto; border: 1px solid #ddd; margin: 10px 0 20px 0; }}
             .note {{ background: #f8fbff; border-left: 4px solid #5b8def; padding: 12px; }}
             code {{ background: #f4f4f4; padding: 2px 4px; }}
+            ul {{ margin-top: 8px; }}
         </style>
     </head>
     <body>
         <h1>{cfg.report_title}</h1>
-        <p>This report presents a fair two-stage modelling workflow for swimming pool classification from imagery. Both the initial and improved solutions are trained and selected on the same train and validation splits, and both are compared on the same untouched hold-out test set. This makes the final comparison easier to interpret.</p>
+        <p>
+            This report presents a fair two-stage modelling workflow for swimming pool classification from imagery.
+            Both the initial and improved solutions are trained and selected on the same train and validation splits,
+            and both are compared on the same untouched hold-out test set. This makes the final comparison easier to interpret.
+        </p>
 
         <div class='note'>
-            <strong>Crux of the problem.</strong> This is not only a modelling problem. It is also a data quality and decision-threshold problem. Small visual structures, varied backgrounds, and ambiguous edge cases can all lead to false positives and false negatives. The modelling strategy therefore combines a lightweight architecture with explicit validation discipline, early stopping, and error inspection.
+            <strong>Crux of the problem.</strong>
+            Swimming pool detection from aerial imagery is not purely a modelling problem.
+            Three factors interact:
+            <ul>
+                <li><strong>Visual ambiguity.</strong> Small pools, shadows, roofs, and water-like surfaces can produce false positives or false negatives.</li>
+                <li><strong>Decision thresholds.</strong> Even a well-performing classifier requires a decision threshold to convert probabilities into labels.</li>
+                <li><strong>Operational objectives.</strong> The acceptable balance between false positives and false negatives depends on how the predictions will be used operationally.</li>
+            </ul>
+            Importantly, the dataset is not perfectly balanced (more pools than non-pools).
+            Rather than artificially correcting this imbalance during training, the model is trained on the natural data distribution.
+            This preserves the meaning of the predicted probabilities and avoids distortions that can arise from resampling or loss reweighting.
+            Instead, the decision threshold is selected on the validation set after training.
+            This follows the general statistical principle that class imbalance in probability-based prediction problems is often better handled through threshold choice than through changing the training distribution.
         </div>
 
         <h2>1. Execution summary</h2>
         <ul>{notes_html}</ul>
 
         <h2>2. Data summary</h2>
+        <p>
+            The dataset contains more pools than non-pools. The modelling pipeline intentionally preserves this natural class distribution during training
+            rather than artificially balancing the data. This is important because probability-based prediction models are most useful when their predicted
+            scores remain interpretable as probabilities. The operational decision rule can then be adjusted afterwards through threshold selection.
+        </p>
         {class_summary.to_html(index=False)}
 
         <h2>3. Initial solution</h2>
@@ -222,6 +244,10 @@ def save_html_report(
         <strong>Preprocessing:</strong> resize to {cfg.image_size}×{cfg.image_size}, ImageNet normalization<br>
         <strong>Selection:</strong> best validation F1 with early stopping<br>
         <strong>Test evaluation:</strong> untouched hold-out test set</p>
+        <p>
+            The baseline uses a standard 0.50 threshold. This provides a clean reference point before introducing any threshold tuning.
+            It answers the first question of the project: can a straightforward transfer-learning pipeline separate pools from non-pools under a simple setup?
+        </p>
         {baseline_metrics_df.to_html(index=False)}
         <img src='{rel(baseline_curve)}' alt='Baseline training curves'>
         <img src='{rel(baseline_cm)}' alt='Baseline confusion matrix'>
@@ -232,12 +258,24 @@ def save_html_report(
             <li>Same train, validation, and hold-out test split as the baseline</li>
             <li>Moderate augmentation rather than aggressive image distortion</li>
             <li>More trainable parameters via fine-tuning</li>
+            <li>Threshold selection performed after training rather than modifying the class distribution</li>
             <li>Threshold tuning on validation probabilities</li>
             <li>Error analysis on false positives and false negatives</li>
             <li>Calibration check for prediction probabilities</li>
             <li>Early stopping based on validation F1</li>
         </ul>
+
         <p><strong>Selected threshold:</strong> {best_threshold:.2f}</p>
+        <p>
+            The model outputs probabilities for the presence of a swimming pool. A decision threshold is therefore required to convert probabilities into class predictions.
+            Rather than fixing this threshold at 0.5, the threshold is selected using the validation set to maximise the F1 score.
+            This allows the final decision rule to reflect the empirical distribution of predicted probabilities rather than assuming that 0.5 is always optimal.
+        </p>
+        <p>
+            Lower thresholds typically increase recall by detecting more pools, while higher thresholds typically increase precision by reducing false alarms.
+            The selected threshold therefore represents the best trade-off under the chosen evaluation metric, not a direct reflection of class prevalence.
+        </p>
+
         {improved_metrics_df.to_html(index=False)}
         <img src='{rel(improved_curve)}' alt='Improved training curves'>
         <img src='{rel(threshold_plot)}' alt='Threshold tuning'>
@@ -246,19 +284,40 @@ def save_html_report(
         <img src='{rel(errors_plot)}' alt='Error analysis panel'>
 
         <h2>5. Threshold tuning evidence</h2>
+        <p>
+            Threshold selection is based on validation-set probabilities only. The hold-out test set remains untouched until the final evaluation step.
+            This preserves a fair separation between model selection and final performance estimation.
+        </p>
         {threshold_df.to_html(index=False)}
 
         <h2>6. Runtime and resource awareness</h2>
         {timings_df.to_html(index=False)}
 
         <h2>7. Interpretation</h2>
-        <p>The initial solution answers a modest but important question: can a standard transfer-learning model separate pool from no-pool under a simple setup? The improved solution then focuses on reliability while keeping the comparison fair by using the same data split. Rather than changing data volume between stages, it improves the experimental design and the decision rule.</p>
+        <p>
+            The initial solution establishes a strong baseline using transfer learning and minimal assumptions.
+            The improved solution focuses on reliability rather than simply increasing model complexity.
+            Moderate augmentation, partial fine-tuning, and explicit threshold selection all contribute to better overall performance while keeping the comparison fair.
+        </p>
+        <p>
+            A particularly important design choice is the separation between <strong>probability estimation</strong> and <strong>decision making</strong>.
+            The model first estimates probabilities for the presence of a pool. Only afterwards is a threshold selected to convert probabilities into binary predictions.
+            This makes the pipeline easier to adapt to different operational objectives.
+        </p>
+        <p>
+            Operationally, the City may care about the balance between false negatives and false positives in different ways.
+            If the objective is to identify as many potential pools as possible for follow-up inspection, a higher-recall threshold may be preferred.
+            If inspection capacity is limited and false alarms are costly, a higher-precision threshold may be more appropriate.
+            For this report the threshold was chosen to maximise the F1 score, which balances precision and recall, but this may not be the final operational metric.
+        </p>
 
         <h2>8. Reproducibility</h2>
-        <p>All outputs are written under <code>{cfg.output_dir}</code>, including figures, saved model weights, metrics, timing logs, the saved configuration, and this HTML report. The script is intended to run end-to-end with a single command and no manual interaction.</p>
+        <p>
+            All outputs are written under <code>{cfg.output_dir}</code>, including figures, saved model weights, metrics, timing logs,
+            the saved configuration, and this HTML report. The script is intended to run end-to-end with a single command and no manual interaction.
+        </p>
     </body>
     </html>
     """
     report_path.write_text(html, encoding="utf-8")
     return report_path
-
