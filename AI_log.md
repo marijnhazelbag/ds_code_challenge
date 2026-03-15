@@ -26,3 +26,34 @@ Changes made by me:
 
 Outcome: The final implementation allows the repository to be cloned and executed without manual data setup, downloading the required datasets automatically while keeping large raw data out of version control.
 
+## Entry 3
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Build initial computer vision baseline in a single training script
+
+Summary: Used AI to help draft an initial end-to-end baseline for the swimming pool classification task in a single training script. This covered dataset loading, train/validation splitting, a first transfer-learning model setup, training loop, and basic evaluation outputs.
+
+Changes made by me:
+- Adjusted the script structure to fit the project layout and downloaded data locations used in this repository.
+- Simplified parts of the generated code to keep the first version easy to run and inspect.
+- Verified the script ran end to end in my environment and produced baseline outputs for the challenge.
+- Used this first version as a working baseline before refactoring into a more maintainable structure.
+
+Outcome: The initial single-file script provided a fast baseline for the swimming pool classification task and served as the starting point for later cleanup and modularisation.
+
+## Entry 4
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Refactor CV baseline into modular utilities and configuration-driven pipeline
+
+Summary: Used AI to help refactor the initial single-file CV baseline into a cleaner structure with reusable utility modules, central path handling, and YAML-based configuration. This included separating data loading, common helpers, modelling, and reporting concerns.
+
+Changes made by me:
+- Split the original single-file implementation into `cv_utils` modules to improve readability and maintainability.
+- Added configuration files for CV experiments and consolidated path handling via `paths.py`.
+- Renamed the refactored training entrypoint to `train_cv.py` and removed the older baseline script to avoid duplicate entrypoints.
+- Fixed issues introduced during refactoring, including import and type-hint related problems, while avoiding circular dependencies.
+
+Outcome: The CV workflow is now easier to run, debug, and extend, while still preserving the original baseline functionality developed for the challenge.
