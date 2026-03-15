@@ -16,6 +16,9 @@ from torchvision.models import ResNet18_Weights
 
 from paths import resolve_cv_paths
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from cct_ds_challenge.train_cv_2 import RunConfig
 
 ALLOWED_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
 
