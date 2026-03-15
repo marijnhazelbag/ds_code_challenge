@@ -1,0 +1,36 @@
+project_root: "."
+image_dir: "data/raw/swimming_pools"
+output_dir: "reports/cv"
+
+dev_sample_per_class: null
+image_size: 224
+batch_size: 32
+num_workers: 4
+seed: 42
+
+use_improved_augmentation: true
+improved_resize_padding: 16
+improved_rotation_degrees: 10.0
+
+baseline_epochs: 5
+improved_epochs: 5
+learning_rate: 0.001
+improved_learning_rate: 0.0003
+weight_decay: 0.0001
+
+val_size: 0.15
+test_size: 0.15
+
+baseline_dropout: 0.2
+improved_dropout: 0.2
+baseline_freeze_backbone: true
+improved_freeze_backbone: false
+
+threshold_min: 0.20
+threshold_max: 0.80
+threshold_step: 0.05
+
+max_error_examples: 12
+report_title: "Swimming Pool Classification Report"
+early_stopping_patience: 2
+min_delta: 0.0001
