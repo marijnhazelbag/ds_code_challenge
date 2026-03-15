@@ -8,3 +8,9 @@ data/raw
 data/external/1dd_buildings.csv.gz
 data/processed
 reports/*
+!reports/cv/
+reports/cv/*
+!reports/cv/cv_report.html
+!reports/sr/
+reports/sr/*
+!reports/sr/sr_report.html

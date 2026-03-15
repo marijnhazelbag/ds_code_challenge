@@ -1,0 +1,341 @@
+
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        <title>Swimming Pool Classification Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; max-width: 1100px; }
+            h1, h2, h3 { color: #16324f; }
+            table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f4f6f8; }
+            img { max-width: 100%; height: auto; border: 1px solid #ddd; margin: 10px 0 20px 0; }
+            .note { background: #f8fbff; border-left: 4px solid #5b8def; padding: 12px; }
+            code { background: #f4f4f4; padding: 2px 4px; }
+        </style>
+    </head>
+    <body>
+        <h1>Swimming Pool Classification Report</h1>
+        <p>This report presents a fair two-stage modelling workflow for swimming pool classification from imagery. Both the initial and improved solutions are trained and selected on the same train and validation splits, and both are compared on the same untouched hold-out test set. This makes the final comparison easier to interpret.</p>
+
+        <div class='note'>
+            <strong>Crux of the problem.</strong> This is not only a modelling problem. It is also a data quality and decision-threshold problem. Small visual structures, varied backgrounds, and ambiguous edge cases can all lead to false positives and false negatives. The modelling strategy therefore combines a lightweight architecture with explicit validation discipline, early stopping, and error inspection.
+        </div>
+
+        <h2>1. Execution summary</h2>
+        <ul><li>Device used: cpu</li><li>Data scope used for both baseline and improved models: full_data</li><li>Fixed random seed: 42</li><li>Hold-out test set created once and used only for final comparison.</li><li>Early stopping patience: 2</li><li>Outputs written to: /Users/marijnhazelbag/Documents/Github/ds_code_challenge/reports/cv</li></ul>
+
+        <h2>2. Data summary</h2>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>split</th>
+      <th>rows</th>
+      <th>no_pool</th>
+      <th>pool</th>
+      <th>pool_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>full_available</td>
+      <td>7043</td>
+      <td>2400</td>
+      <td>4643</td>
+      <td>0.659236</td>
+    </tr>
+    <tr>
+      <td>modelling_source_full_data</td>
+      <td>7043</td>
+      <td>2400</td>
+      <td>4643</td>
+      <td>0.659236</td>
+    </tr>
+    <tr>
+      <td>train</td>
+      <td>4930</td>
+      <td>1680</td>
+      <td>3250</td>
+      <td>0.659229</td>
+    </tr>
+    <tr>
+      <td>validation</td>
+      <td>1056</td>
+      <td>360</td>
+      <td>696</td>
+      <td>0.659091</td>
+    </tr>
+    <tr>
+      <td>holdout_test</td>
+      <td>1057</td>
+      <td>360</td>
+      <td>697</td>
+      <td>0.659413</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>3. Initial solution</h2>
+        <p><strong>Model:</strong> ResNet18 transfer learning<br>
+        <strong>Preprocessing:</strong> resize to 224×224, ImageNet normalization<br>
+        <strong>Selection:</strong> best validation F1 with early stopping<br>
+        <strong>Test evaluation:</strong> untouched hold-out test set</p>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>stage</th>
+      <th>threshold</th>
+      <th>accuracy</th>
+      <th>precision</th>
+      <th>recall</th>
+      <th>f1</th>
+      <th>roc_auc</th>
+      <th>loss</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>initial_solution</td>
+      <td>0.5</td>
+      <td>0.892148</td>
+      <td>0.873239</td>
+      <td>0.978479</td>
+      <td>0.922869</td>
+      <td>0.950506</td>
+      <td>0.286007</td>
+    </tr>
+  </tbody>
+</table>
+        <img src='figures/baseline_training_curves.png' alt='Baseline training curves'>
+        <img src='figures/baseline_confusion_matrix.png' alt='Baseline confusion matrix'>
+
+        <h2>4. Improved solution</h2>
+        <p><strong>Changes from baseline:</strong></p>
+        <ul>
+            <li>Same train, validation, and hold-out test split as the baseline</li>
+            <li>Moderate augmentation rather than aggressive image distortion</li>
+            <li>More trainable parameters via fine-tuning</li>
+            <li>Threshold tuning on validation probabilities</li>
+            <li>Error analysis on false positives and false negatives</li>
+            <li>Calibration check for prediction probabilities</li>
+            <li>Early stopping based on validation F1</li>
+        </ul>
+        <p><strong>Selected threshold:</strong> 0.40</p>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>stage</th>
+      <th>threshold</th>
+      <th>accuracy</th>
+      <th>precision</th>
+      <th>recall</th>
+      <th>f1</th>
+      <th>roc_auc</th>
+      <th>loss</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>improved_solution</td>
+      <td>0.4</td>
+      <td>0.945128</td>
+      <td>0.966423</td>
+      <td>0.949785</td>
+      <td>0.958032</td>
+      <td>0.988084</td>
+      <td>0.138153</td>
+    </tr>
+  </tbody>
+</table>
+        <img src='figures/improved_training_curves.png' alt='Improved training curves'>
+        <img src='figures/threshold_tuning.png' alt='Threshold tuning'>
+        <img src='figures/improved_confusion_matrix.png' alt='Improved confusion matrix'>
+        <img src='figures/improved_calibration.png' alt='Calibration plot'>
+        <img src='figures/error_panel.png' alt='Error analysis panel'>
+
+        <h2>5. Threshold tuning evidence</h2>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>threshold</th>
+      <th>accuracy</th>
+      <th>precision</th>
+      <th>recall</th>
+      <th>f1</th>
+      <th>roc_auc</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0.40</td>
+      <td>0.955492</td>
+      <td>0.970972</td>
+      <td>0.961207</td>
+      <td>0.966065</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.35</td>
+      <td>0.954545</td>
+      <td>0.962857</td>
+      <td>0.968391</td>
+      <td>0.965616</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.30</td>
+      <td>0.952652</td>
+      <td>0.953652</td>
+      <td>0.975575</td>
+      <td>0.964489</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.45</td>
+      <td>0.953598</td>
+      <td>0.973646</td>
+      <td>0.955460</td>
+      <td>0.964467</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.50</td>
+      <td>0.947917</td>
+      <td>0.974815</td>
+      <td>0.945402</td>
+      <td>0.959883</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.55</td>
+      <td>0.946970</td>
+      <td>0.977612</td>
+      <td>0.941092</td>
+      <td>0.959004</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.25</td>
+      <td>0.943182</td>
+      <td>0.938017</td>
+      <td>0.978448</td>
+      <td>0.957806</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.60</td>
+      <td>0.945076</td>
+      <td>0.981873</td>
+      <td>0.933908</td>
+      <td>0.957290</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.20</td>
+      <td>0.940341</td>
+      <td>0.928281</td>
+      <td>0.985632</td>
+      <td>0.956098</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.65</td>
+      <td>0.942235</td>
+      <td>0.987711</td>
+      <td>0.923851</td>
+      <td>0.954714</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.70</td>
+      <td>0.937500</td>
+      <td>0.987616</td>
+      <td>0.916667</td>
+      <td>0.950820</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.75</td>
+      <td>0.931818</td>
+      <td>0.987500</td>
+      <td>0.908046</td>
+      <td>0.946108</td>
+      <td>0.988973</td>
+    </tr>
+    <tr>
+      <td>0.80</td>
+      <td>0.922348</td>
+      <td>0.987302</td>
+      <td>0.893678</td>
+      <td>0.938160</td>
+      <td>0.988973</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>6. Runtime and resource awareness</h2>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>step</th>
+      <th>seconds</th>
+      <th>minutes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>improved_training</td>
+      <td>1384.081499</td>
+      <td>23.068025</td>
+    </tr>
+    <tr>
+      <td>baseline_training</td>
+      <td>892.585927</td>
+      <td>14.876432</td>
+    </tr>
+    <tr>
+      <td>baseline_evaluation</td>
+      <td>48.916907</td>
+      <td>0.815282</td>
+    </tr>
+    <tr>
+      <td>improved_evaluation</td>
+      <td>48.832065</td>
+      <td>0.813868</td>
+    </tr>
+    <tr>
+      <td>threshold_tuning</td>
+      <td>48.789461</td>
+      <td>0.813158</td>
+    </tr>
+    <tr>
+      <td>load_labels</td>
+      <td>0.150931</td>
+      <td>0.002516</td>
+    </tr>
+    <tr>
+      <td>split_data</td>
+      <td>0.002302</td>
+      <td>0.000038</td>
+    </tr>
+    <tr>
+      <td>improved_dataloaders</td>
+      <td>0.001755</td>
+      <td>0.000029</td>
+    </tr>
+    <tr>
+      <td>baseline_dataloaders</td>
+      <td>0.000230</td>
+      <td>0.000004</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>7. Interpretation</h2>
+        <p>The initial solution answers a modest but important question: can a standard transfer-learning model separate pool from no-pool under a simple setup? The improved solution then focuses on reliability while keeping the comparison fair by using the same data split. Rather than changing data volume between stages, it improves the experimental design and the decision rule.</p>
+
+        <h2>8. Reproducibility</h2>
+        <p>All outputs are written under <code>reports/cv</code>, including figures, saved model weights, metrics, timing logs, the saved configuration, and this HTML report. The script is intended to run end-to-end with a single command and no manual interaction.</p>
+    </body>
+    </html>
+    

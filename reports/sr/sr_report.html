@@ -1,0 +1,292 @@
+
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        <title>Sewer Request Introspection Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; max-width: 1100px; }
+            h1, h2, h3 { color: #16324f; }
+            table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f4f6f8; }
+            img { max-width: 100%; height: auto; border: 1px solid #ddd; margin: 10px 0 20px 0; }
+            .note { background: #f8fbff; border-left: 4px solid #5b8def; padding: 12px; }
+            code { background: #f4f4f4; padding: 2px 4px; }
+        </style>
+    </head>
+    <body>
+        <h1>Sewer Request Introspection Report</h1>
+        <p>This report presents a two-stage modelling workflow for explaining and predicting the number of sewer blockage / overflow requests per H3 level 8 hex. The initial and improved Poisson models are trained and compared on the same fixed train and validation splits, and then evaluated on the same untouched hold-out test set. A Negative Binomial model is included as a sensitivity check because sewer request counts are plausibly overdispersed.</p>
+
+        <div class='note'>
+            <strong>Crux of the problem.</strong> The task is not only to predict sewer request counts, but also to explain what drives them. The modelling strategy therefore prioritises directly interpretable count models over more complex black-box alternatives.
+        </div>
+
+        <h2>1. Execution summary</h2>
+        <ul>
+            <li>Fixed random seed: 42</li>
+            <li>Target type: Sewer: Blocked/Overflow</li>
+            <li>Modelling unit: H3 level 8 hex</li>
+            <li>Minimum building count for inclusion: 5</li>
+            <li>Initial model features: log_non_target_requests, diversity_ex_target</li>
+            <li>Improved model features: log_non_target_requests, diversity_ex_target, log_building_count, log_mean_building_area, log_sd_building_area</li>
+            <li>Outputs written to: /Users/marijnhazelbag/Documents/Github/ds_code_challenge/reports/sr</li>
+        </ul>
+
+        <h2>2. Modelling scope and assumptions</h2>
+        <p>The analysis is primarily explanatory rather than purely predictive. The aim is to identify variables associated with higher sewer incident counts across the city. Given the limited feature set available in this assessment, the estimated relationships should be interpreted as associations rather than causal effects, because unobserved infrastructure and environmental factors may confound the observed relationships.</p>
+        <p>Hexes with fewer than 5 buildings were excluded from modelling. This defines a more realistic population at risk for sewer incidents and reduces the influence of structural-zero areas such as mountains, water, or other non-residential zones with little or no built environment.</p>
+        <p>A fixed train/validation/test workflow was retained even though the primary goal is explanatory. This provides a fair way to compare the initial and improved solutions and assess whether the fitted relationships generalise beyond the estimation sample.</p>
+        <p>The model explains cross-sectional variation in annual sewer request counts across hexes. It does not attempt to identify short-term causal shocks, such as the COVID-related reporting disruption observed in the exploratory analysis.</p>
+        <p>Recent work in other applied domains has shown that post hoc attribution methods for complex models can be unstable, which supports a preference here for directly interpretable models when the goal is to understand likely drivers rather than merely maximise predictive performance.</p>
+        <p><em>Reference:</em> Arends BKO et al. <em>Signal or noise? Evaluating commonly used attribution methods for explaining deep neural networks in electrocardiogram classification</em>. European Heart Journal - Digital Health, 2025.</p>
+
+        <h2>3. Data summary</h2>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>split</th>
+      <th>rows</th>
+      <th>mean_target</th>
+      <th>zero_rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>full_available</td>
+      <td>2252</td>
+      <td>57.726021</td>
+      <td>0.357460</td>
+    </tr>
+    <tr>
+      <td>train</td>
+      <td>1576</td>
+      <td>57.138959</td>
+      <td>0.364213</td>
+    </tr>
+    <tr>
+      <td>validation</td>
+      <td>338</td>
+      <td>54.156805</td>
+      <td>0.366864</td>
+    </tr>
+    <tr>
+      <td>holdout_test</td>
+      <td>338</td>
+      <td>64.032544</td>
+      <td>0.316568</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>4. Initial solution</h2>
+        <p><strong>Model:</strong> Poisson regression using service-request-derived features only<br>
+        <strong>Reason:</strong> Simple, stable count model and a strong baseline for municipal request counts.</p>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>stage</th>
+      <th>mae</th>
+      <th>rmse</th>
+      <th>mean_poisson_deviance</th>
+      <th>spearman</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>initial_solution_validation</td>
+      <td>28.555632</td>
+      <td>72.743647</td>
+      <td>25.686878</td>
+      <td>0.920404</td>
+    </tr>
+    <tr>
+      <td>initial_solution_test</td>
+      <td>36.656231</td>
+      <td>84.088055</td>
+      <td>33.421637</td>
+      <td>0.931517</td>
+    </tr>
+  </tbody>
+</table>
+        <img src='figures/baseline_actual_vs_predicted.png' alt='Baseline actual vs predicted'>
+
+        <h2>5. Improved solution</h2>
+        <p><strong>Model:</strong> Poisson regression with service-request-derived features plus Google Buildings features<br>
+        <strong>Reason:</strong> The improvement step adds additional domain-relevant explanatory variables related to built density and built form, rather than changing to a less directly comparable model family.</p>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>stage</th>
+      <th>mae</th>
+      <th>rmse</th>
+      <th>mean_poisson_deviance</th>
+      <th>spearman</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>improved_solution_validation</td>
+      <td>27.564696</td>
+      <td>88.011406</td>
+      <td>26.107732</td>
+      <td>0.926962</td>
+    </tr>
+    <tr>
+      <td>improved_solution_test</td>
+      <td>33.903078</td>
+      <td>79.232290</td>
+      <td>28.727372</td>
+      <td>0.932803</td>
+    </tr>
+  </tbody>
+</table>
+        <img src='figures/improved_actual_vs_predicted.png' alt='Improved actual vs predicted'>
+        <img src='figures/improved_residual_hist.png' alt='Improved residual histogram'>
+        <img src='figures/improved_residual_map.png' alt='Improved residual map'>
+
+        <h2>6. Sensitivity analysis</h2>
+        <p><strong>Model:</strong> Negative Binomial GLM using the improved feature set<br>
+        <strong>Reason:</strong> Counts of sewer incidents are plausibly overdispersed. This model is included as a sensitivity check to test whether the main driver story is robust to a distributional assumption better suited to overdispersed counts.</p>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>stage</th>
+      <th>mae</th>
+      <th>rmse</th>
+      <th>mean_poisson_deviance</th>
+      <th>spearman</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>sensitivity_validation</td>
+      <td>27.038615</td>
+      <td>75.259246</td>
+      <td>22.572011</td>
+      <td>0.925426</td>
+    </tr>
+    <tr>
+      <td>sensitivity_test</td>
+      <td>35.663841</td>
+      <td>83.325296</td>
+      <td>29.583942</td>
+      <td>0.932931</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>7. Driver analysis</h2>
+        <p>Driver analysis is based on the Negative Binomial sensitivity model, because it retains coefficient interpretability while being better aligned with overdispersed count data. Coefficients are interpreted through incidence-rate ratios. Values above 1 imply that higher feature values are associated with higher expected sewer request counts, holding other variables fixed.</p>
+        <h3>Positive drivers</h3>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>feature</th>
+      <th>coefficient</th>
+      <th>incidence_rate_ratio</th>
+      <th>p_value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>log_non_target_requests</td>
+      <td>1.209548</td>
+      <td>3.351970</td>
+      <td>5.487703e-129</td>
+    </tr>
+    <tr>
+      <td>log_sd_building_area</td>
+      <td>0.268585</td>
+      <td>1.308112</td>
+      <td>2.912697e-05</td>
+    </tr>
+    <tr>
+      <td>log_building_count</td>
+      <td>0.241408</td>
+      <td>1.273041</td>
+      <td>2.736011e-07</td>
+    </tr>
+  </tbody>
+</table>
+        <p>For log_non_target_requests, a one-unit increase is associated with the expected sewer request count being multiplied by 3.35, holding other variables fixed.</p>
+        <h3>Negative drivers</h3>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>feature</th>
+      <th>coefficient</th>
+      <th>incidence_rate_ratio</th>
+      <th>p_value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>log_mean_building_area</td>
+      <td>-0.416402</td>
+      <td>0.659415</td>
+      <td>2.219574e-04</td>
+    </tr>
+    <tr>
+      <td>diversity_ex_target</td>
+      <td>-0.009834</td>
+      <td>0.990214</td>
+      <td>1.497517e-09</td>
+    </tr>
+  </tbody>
+</table>
+        <p>For log_mean_building_area, a one-unit increase is associated with the expected sewer request count being multiplied by 0.66, or about 34% lower, holding other variables fixed.</p>
+
+        <h2>8. Interpretation</h2>
+        <p>The initial solution establishes a transparent baseline using only service-request-derived variables. The improved solution tests whether adding building-density and built-form features improves explanatory and predictive performance. The Negative Binomial model is retained as a sensitivity analysis for interpretation under overdispersion, rather than being treated as the primary improved model.</p>
+        <p>Because the model omits several important municipal and physical drivers, including sewer network topology, pipe age, maintenance history, rainfall, slope, and detailed population exposure, any driver statements should be interpreted cautiously. Residual spatial structure would suggest that these omitted factors still explain meaningful variation.</p>
+
+        <h2>9. Runtime and resource awareness</h2>
+        <table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>step</th>
+      <th>seconds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>load_and_prepare_features</td>
+      <td>0.006227</td>
+    </tr>
+    <tr>
+      <td>split_data</td>
+      <td>0.001051</td>
+    </tr>
+    <tr>
+      <td>baseline_training_and_validation</td>
+      <td>0.014390</td>
+    </tr>
+    <tr>
+      <td>improved_training_and_validation</td>
+      <td>0.004384</td>
+    </tr>
+    <tr>
+      <td>sensitivity_nb_training_and_validation</td>
+      <td>0.007921</td>
+    </tr>
+    <tr>
+      <td>baseline_refit_and_test</td>
+      <td>0.004489</td>
+    </tr>
+    <tr>
+      <td>improved_refit_and_test</td>
+      <td>0.005694</td>
+    </tr>
+    <tr>
+      <td>sensitivity_nb_refit_and_test</td>
+      <td>0.007037</td>
+    </tr>
+  </tbody>
+</table>
+
+        <h2>10. Reproducibility</h2>
+        <p>All outputs are written under <code>/Users/marijnhazelbag/Documents/Github/ds_code_challenge/reports/sr</code>, including metrics, figures, predictions, coefficients, timing logs, and this HTML report. The script is intended to run end-to-end with a single command and no manual interaction.</p>
+    </body>
+    </html>
+    
