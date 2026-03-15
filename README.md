@@ -67,6 +67,16 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+## Raw challenge data
+
+Raw challenge data is not committed to this repository. It is downloaded programmatically from the public City of Cape Town challenge S3 bucket.
+
+The challenge README states that the provided AWS credentials do not grant special access beyond what is already anonymously available. This repository therefore downloads the data directly from the public bucket.
+
+Run:
+
+./scripts/download_data.sh
+
 ## Running the project
 
 Run the full pipeline:
@@ -81,18 +91,10 @@ This script runs the following steps in sequence:
 
 Workflows can also be executed individually:
 
+./scripts/download_data.sh
 ./scripts/run_cv.sh
 ./scripts/run_sr.sh
 
-## Raw challenge data
-
-Raw challenge data is not committed to this repository. It is downloaded programmatically from the public City of Cape Town challenge S3 bucket.
-
-The challenge README states that the provided AWS credentials do not grant special access beyond what is already anonymously available. This repository therefore downloads the data directly from the public bucket.
-
-Run:
-
-./scripts/download_data.sh
 
 ## External data
 
