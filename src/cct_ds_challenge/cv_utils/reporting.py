@@ -70,16 +70,35 @@ def save_confusion_matrix(y_true: np.ndarray, y_prob: np.ndarray, threshold: flo
 
 def save_threshold_plot(threshold_df: pd.DataFrame, output_path: Path) -> None:
     """Save a plot of validation metrics over candidate thresholds."""
+    
+    # Ensure thresholds are ordered before plotting
+    df = threshold_df.sort_values("threshold")
+
     fig, ax = plt.subplots(figsize=(7, 4))
-    for metric_name in ["accuracy", "precision", "recall", "f1"]:
-        ax.plot(threshold_df["threshold"], threshold_df[metric_name], label=metric_name)
+
+    metrics = ["accuracy", "precision", "recall", "f1"]
+
+    for metric_name in metrics:
+        ax.plot(
+            df["threshold"],
+            df[metric_name],
+            marker="o",
+            linestyle="-",
+            label=metric_name,
+        )
+
     ax.set_xlabel("Decision threshold")
     ax.set_ylabel("Metric")
     ax.set_title("Validation metrics across thresholds")
+    ax.set_ylim(0.88, 1.0)
+
     ax.legend()
+    ax.grid(alpha=0.3)
+
     fig.tight_layout()
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+
 
 
 
@@ -226,6 +245,7 @@ def save_html_report(
             This preserves the meaning of the predicted probabilities and avoids distortions that can arise from resampling or loss reweighting.
             Instead, the decision threshold is selected on the validation set after training.
             This follows the general statistical principle that class imbalance in probability-based prediction problems is often better handled through threshold choice than through changing the training distribution.
+            Reference: van Smeden et al., <em>"The harm of class imbalance corrections for risk prediction models."</em> 
         </div>
 
         <h2>1. Execution summary</h2>
