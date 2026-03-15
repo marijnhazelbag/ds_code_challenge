@@ -57,3 +57,110 @@ Changes made by me:
 - Fixed issues introduced during refactoring, including import and type-hint related problems, while avoiding circular dependencies.
 
 Outcome: The CV workflow is now easier to run, debug, and extend, while still preserving the original baseline functionality developed for the challenge.
+
+## Entry 5
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Design geospatial feature engineering pipeline for service request modelling
+
+Summary: Used AI to help design the feature engineering pipeline for the service request modelling task. This included defining how to aggregate service request counts by hex, avoid target leakage, and incorporate Google Buildings data as explanatory variables.
+
+Changes made by me:
+- Chose to implement feature engineering as a **separate preprocessing script** rather than embedding it directly in the training script, keeping data preparation reproducible and modular.
+- Defined the final set of derived features including `non_target_requests`, `diversity_ex_target`, and log-transformed predictors to stabilise variance.
+- Decided to compute building features (count, mean area, area variability) per hex using Google Buildings data and store these as processed features.
+- Ensured that feature construction avoids target leakage by subtracting sewer requests from total service requests when constructing predictors.
+
+Outcome: The repository now contains a clear preprocessing step that transforms raw service request and building data into a modelling-ready dataset.
+
+---
+
+## Entry 6
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Implement feature engineering script (`build_sr_features.py`)
+
+Summary: Used AI to generate the initial implementation of the feature engineering pipeline for the service request modelling task. The script aggregates service requests per hex, constructs modelling features, and writes processed outputs to the repository’s `data/processed` directory.
+
+Changes made by me:
+- Adjusted file paths to match the repository’s `paths.py` conventions.
+- Simplified intermediate outputs and removed unnecessary artefacts so that only modelling-ready datasets are written to disk.
+- Fixed dependency issues (e.g. parquet engine requirements) and verified the outputs locally.
+- Validated the resulting parquet files by loading them in a notebook and inspecting summary statistics.
+
+Outcome: The feature engineering pipeline can now be run end-to-end to generate modelling datasets in a reproducible way.
+
+---
+
+## Entry 7
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Develop baseline modelling workflow for sewer request prediction (`train_sr.py`)
+
+Summary: Used AI to help draft the initial modelling workflow for predicting sewer blockage/overflow requests per H3 hex. The script trains a baseline Poisson regression model, evaluates performance on validation and test sets, and generates a reproducible HTML report including metrics, figures, and driver analysis.
+
+Changes made by me:
+- Adapted the generated script to work with the feature dataset produced by `build_sr_features.py`.
+- Introduced filtering to remove structural-zero hexes with extremely low building counts, which correspond to areas unlikely to generate sewer incidents.
+- Verified that the script executes end-to-end and produces evaluation outputs and plots in the repository’s reports directory.
+- Ensured all outputs are saved automatically to support reproducibility.
+
+Outcome: The repository now contains a complete modelling workflow that can be executed with a single command to generate results and documentation.
+
+---
+
+## Entry 8
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Improve model comparison and interpretability in sewer request modelling report
+
+Summary: Used AI to revise the modelling approach and report structure so that the comparison between models reflects meaningful methodological improvements. The workflow was updated to compare a baseline Poisson model using service-request-derived features against an improved Poisson model that incorporates Google Buildings data.
+
+Changes made by me:
+- Redefined the modelling comparison so that the **improvement step reflects additional explanatory data** rather than simply switching model families.
+- Retained the Negative Binomial model as a **sensitivity analysis** for overdispersed count data rather than presenting it as the primary improved model.
+- Corrected the driver analysis tables so that positive and negative effects are separated based on coefficient sign.
+- Added clear interpretations of incidence-rate ratios to explain the magnitude of identified drivers.
+- Expanded the report narrative to clarify that the analysis is **explanatory rather than causal**, given the limited feature set available.
+
+Outcome: The final modelling workflow and report now present a clearer and more defensible explanation of sewer request drivers, while maintaining reproducible evaluation and transparent modelling choices.
+
+---
+
+## Entry 9
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Strengthen modelling rationale and interpretability discussion in report
+
+Summary: Used AI to refine the modelling rationale and supporting discussion in the generated HTML report. This included clarifying the reasoning behind model selection, train/validation/test splitting, and the use of interpretable statistical models rather than complex black-box approaches.
+
+Changes made by me:
+- Added discussion explaining why interpretable count models were preferred for this task.
+- Included a reference to recent research highlighting the instability of attribution methods used to interpret complex neural networks.
+- Clarified that the train/validation/test split is used to evaluate generalisation and ensure fair comparison between modelling approaches.
+- Emphasised that the results should be interpreted as **associations rather than causal effects**, due to omitted variables such as infrastructure age, rainfall, and sewer network topology.
+
+Outcome: The report now provides stronger methodological justification for the modelling choices and better communicates the limitations and interpretation of the results.
+
+---
+
+## Entry 10
+
+Date: 2026-03-15  
+Tool: ChatGPT (GPT-5)  
+Task: Review and refinement of AI-assisted modelling outputs
+
+Summary: Used AI iteratively to review modelling results, inspect generated reports, and identify areas where the analysis or interpretation could be improved before finalising the challenge submission.
+
+Changes made by me:
+- Critically reviewed the AI-generated modelling outputs and report content rather than accepting suggestions verbatim.
+- Adjusted the narrative around model performance where validation improvements did not translate into test-set gains.
+- Ensured that model comparisons and driver interpretations remained scientifically defensible.
+- Integrated only those AI suggestions that improved clarity, reproducibility, or methodological soundness.
+
+Outcome: The final solution reflects a combination of AI-assisted drafting and manual review, ensuring that modelling decisions and interpretations remain the responsibility of the author.
