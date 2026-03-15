@@ -33,9 +33,6 @@ def load_features() -> pd.DataFrame:
 def make_model_table(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
-    # Restrict analysis to hexes with a minimum built environment footprint.
-    # This defines a more realistic population at risk for sewer incidents and
-    # avoids large numbers of structural-zero hexes such as mountains or water.
     out = out.loc[out["building_count"] >= MIN_BUILDING_COUNT].copy()
 
     # Avoid target leakage by removing sewer requests from total request volume.
@@ -54,7 +51,14 @@ def make_model_table(df: pd.DataFrame) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
-def get_feature_cols() -> list[str]:
+def get_baseline_feature_cols() -> list[str]:
+    return [
+        "log_non_target_requests",
+        "diversity_ex_target",
+    ]
+
+
+def get_improved_feature_cols() -> list[str]:
     return [
         "log_non_target_requests",
         "diversity_ex_target",
@@ -84,7 +88,7 @@ def evaluate_predictions(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, fl
     }
 
 
-def fit_baseline_poisson(
+def fit_poisson_model(
     train_df: pd.DataFrame,
     val_df: pd.DataFrame,
     feature_cols: list[str],
@@ -106,7 +110,7 @@ def fit_baseline_poisson(
     return model, metrics
 
 
-def fit_improved_nb_glm(
+def fit_nb_glm(
     train_df: pd.DataFrame,
     val_df: pd.DataFrame,
     feature_cols: list[str],
@@ -138,8 +142,8 @@ def fit_improved_nb_glm(
     return nb_model, metrics, coef_df
 
 
-def refit_and_test(
-    baseline_model: Pipeline,
+def refit_poisson_and_test(
+    model: Pipeline,
     feature_cols: list[str],
     train_val_df: pd.DataFrame,
     test_df: pd.DataFrame,
@@ -149,9 +153,9 @@ def refit_and_test(
     X_test = test_df[feature_cols]
     y_test = test_df[TARGET_COL].values
 
-    baseline_model.fit(X_train_val, y_train_val)
-    test_pred = baseline_model.predict(X_test)
-    return baseline_model, evaluate_predictions(y_test, test_pred), test_pred
+    model.fit(X_train_val, y_train_val)
+    test_pred = model.predict(X_test)
+    return model, evaluate_predictions(y_test, test_pred), test_pred
 
 
 def refit_nb_and_test(
@@ -231,28 +235,54 @@ def save_residual_map(
 
     fig, ax = plt.subplots(figsize=(7, 9))
     map_df.plot(column="residual", legend=True, ax=ax)
-    ax.set_title("Improved model residuals on hold-out test hexes")
+    ax.set_title("Improved Poisson model residuals on hold-out test hexes")
     ax.axis("off")
     fig.tight_layout()
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
+def format_driver_tables(coef_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    filtered = coef_df[coef_df["feature"] != "const"].copy()
+    positive = filtered[filtered["coefficient"] > 0].sort_values("coefficient", ascending=False).head(5)
+    negative = filtered[filtered["coefficient"] < 0].sort_values("coefficient", ascending=True).head(5)
+    return positive, negative
+
+
+def make_irr_interpretation(row: pd.Series) -> str:
+    feature = row["feature"]
+    irr = row["incidence_rate_ratio"]
+    if irr >= 1:
+        return (
+            f"For {feature}, a one-unit increase is associated with the expected sewer request "
+            f"count being multiplied by {irr:.2f}, holding other variables fixed."
+        )
+    pct_lower = (1 - irr) * 100
+    return (
+        f"For {feature}, a one-unit increase is associated with the expected sewer request "
+        f"count being multiplied by {irr:.2f}, or about {pct_lower:.0f}% lower, holding other variables fixed."
+    )
+
+
 def save_html_report(
     output_dir: Path,
     data_summary: pd.DataFrame,
+    baseline_feature_cols: list[str],
+    improved_feature_cols: list[str],
     baseline_metrics_val: dict[str, float],
     baseline_metrics_test: dict[str, float],
     improved_metrics_val: dict[str, float],
     improved_metrics_test: dict[str, float],
+    sensitivity_metrics_val: dict[str, float],
+    sensitivity_metrics_test: dict[str, float],
     coef_df: pd.DataFrame,
     runtime_rows: list[dict[str, float]],
-    feature_cols: list[str],
 ) -> None:
     runtime_df = pd.DataFrame(runtime_rows)
+    top_pos, top_neg = format_driver_tables(coef_df)
 
-    top_pos = coef_df[coef_df["feature"] != "const"].sort_values("coefficient", ascending=False).head(5)
-    top_neg = coef_df[coef_df["feature"] != "const"].sort_values("coefficient", ascending=True).head(5)
+    pos_note = make_irr_interpretation(top_pos.iloc[0]) if not top_pos.empty else ""
+    neg_note = make_irr_interpretation(top_neg.iloc[0]) if not top_neg.empty else ""
 
     html = f"""
     <html>
@@ -272,10 +302,10 @@ def save_html_report(
     </head>
     <body>
         <h1>Sewer Request Introspection Report</h1>
-        <p>This report presents a two-stage modelling workflow for explaining and predicting the number of sewer blockage / overflow requests per H3 level 8 hex. Both the initial and improved solutions are trained and selected on the same fixed train and validation splits, and both are compared on the same untouched hold-out test set.</p>
+        <p>This report presents a two-stage modelling workflow for explaining and predicting the number of sewer blockage / overflow requests per H3 level 8 hex. The initial and improved Poisson models are trained and compared on the same fixed train and validation splits, and then evaluated on the same untouched hold-out test set. A Negative Binomial model is included as a sensitivity check because sewer request counts are plausibly overdispersed.</p>
 
         <div class='note'>
-            <strong>Crux of the problem.</strong> The task is not only to predict sewer request counts, but also to explain what drives them. The modelling strategy therefore uses count models that are stable, interpretable, and appropriate for overdispersed municipal request data.
+            <strong>Crux of the problem.</strong> The task is not only to predict sewer request counts, but also to explain what drives them. The modelling strategy therefore prioritises directly interpretable count models over more complex black-box alternatives.
         </div>
 
         <h2>1. Execution summary</h2>
@@ -284,47 +314,58 @@ def save_html_report(
             <li>Target type: Sewer: Blocked/Overflow</li>
             <li>Modelling unit: H3 level 8 hex</li>
             <li>Minimum building count for inclusion: {MIN_BUILDING_COUNT}</li>
-            <li>Features used: {", ".join(feature_cols)}</li>
+            <li>Initial model features: {", ".join(baseline_feature_cols)}</li>
+            <li>Improved model features: {", ".join(improved_feature_cols)}</li>
             <li>Outputs written to: {output_dir}</li>
         </ul>
 
         <h2>2. Modelling scope and assumptions</h2>
         <p>The analysis is primarily explanatory rather than purely predictive. The aim is to identify variables associated with higher sewer incident counts across the city. Given the limited feature set available in this assessment, the estimated relationships should be interpreted as associations rather than causal effects, because unobserved infrastructure and environmental factors may confound the observed relationships.</p>
         <p>Hexes with fewer than {MIN_BUILDING_COUNT} buildings were excluded from modelling. This defines a more realistic population at risk for sewer incidents and reduces the influence of structural-zero areas such as mountains, water, or other non-residential zones with little or no built environment.</p>
+        <p>A fixed train/validation/test workflow was retained even though the primary goal is explanatory. This provides a fair way to compare the initial and improved solutions and assess whether the fitted relationships generalise beyond the estimation sample.</p>
         <p>The model explains cross-sectional variation in annual sewer request counts across hexes. It does not attempt to identify short-term causal shocks, such as the COVID-related reporting disruption observed in the exploratory analysis.</p>
+        <p>Recent work in other applied domains has shown that post hoc attribution methods for complex models can be unstable, which supports a preference here for directly interpretable models when the goal is to understand likely drivers rather than merely maximise predictive performance.</p>
+        <p><em>Reference:</em> Arends BKO et al. <em>Signal or noise? Evaluating commonly used attribution methods for explaining deep neural networks in electrocardiogram classification</em>. European Heart Journal - Digital Health, 2025.</p>
 
         <h2>3. Data summary</h2>
         {data_summary.to_html(index=False)}
 
         <h2>4. Initial solution</h2>
-        <p><strong>Model:</strong> Poisson regression<br>
+        <p><strong>Model:</strong> Poisson regression using service-request-derived features only<br>
         <strong>Reason:</strong> Simple, stable count model and a strong baseline for municipal request counts.</p>
         {pd.DataFrame([{"stage": "initial_solution_validation", **baseline_metrics_val}, {"stage": "initial_solution_test", **baseline_metrics_test}]).to_html(index=False)}
         <img src='figures/baseline_actual_vs_predicted.png' alt='Baseline actual vs predicted'>
 
         <h2>5. Improved solution</h2>
-        <p><strong>Model:</strong> Negative Binomial GLM<br>
-        <strong>Reason:</strong> Same explanatory structure as the baseline, but better suited to overdispersed count data.</p>
+        <p><strong>Model:</strong> Poisson regression with service-request-derived features plus Google Buildings features<br>
+        <strong>Reason:</strong> The improvement step adds additional domain-relevant explanatory variables related to built density and built form, rather than changing to a less directly comparable model family.</p>
         {pd.DataFrame([{"stage": "improved_solution_validation", **improved_metrics_val}, {"stage": "improved_solution_test", **improved_metrics_test}]).to_html(index=False)}
         <img src='figures/improved_actual_vs_predicted.png' alt='Improved actual vs predicted'>
         <img src='figures/improved_residual_hist.png' alt='Improved residual histogram'>
         <img src='figures/improved_residual_map.png' alt='Improved residual map'>
 
-        <h2>6. Driver analysis</h2>
-        <p>For the improved model, coefficients are interpreted through incidence-rate ratios. Values above 1 imply that higher feature values are associated with higher expected sewer request counts, holding other variables fixed.</p>
+        <h2>6. Sensitivity analysis</h2>
+        <p><strong>Model:</strong> Negative Binomial GLM using the improved feature set<br>
+        <strong>Reason:</strong> Counts of sewer incidents are plausibly overdispersed. This model is included as a sensitivity check to test whether the main driver story is robust to a distributional assumption better suited to overdispersed counts.</p>
+        {pd.DataFrame([{"stage": "sensitivity_validation", **sensitivity_metrics_val}, {"stage": "sensitivity_test", **sensitivity_metrics_test}]).to_html(index=False)}
+
+        <h2>7. Driver analysis</h2>
+        <p>Driver analysis is based on the Negative Binomial sensitivity model, because it retains coefficient interpretability while being better aligned with overdispersed count data. Coefficients are interpreted through incidence-rate ratios. Values above 1 imply that higher feature values are associated with higher expected sewer request counts, holding other variables fixed.</p>
         <h3>Positive drivers</h3>
         {top_pos.to_html(index=False)}
+        <p>{pos_note}</p>
         <h3>Negative drivers</h3>
         {top_neg.to_html(index=False)}
+        <p>{neg_note}</p>
 
-        <h2>7. Interpretation</h2>
-        <p>The initial solution establishes a transparent baseline. The improved solution keeps the modelling story interpretable while relaxing the Poisson variance assumption. This improves suitability for municipal request counts and gives a clearer basis for discussing likely drivers of sewer incidents.</p>
+        <h2>8. Interpretation</h2>
+        <p>The initial solution establishes a transparent baseline using only service-request-derived variables. The improved solution tests whether adding building-density and built-form features improves explanatory and predictive performance. The Negative Binomial model is retained as a sensitivity analysis for interpretation under overdispersion, rather than being treated as the primary improved model.</p>
         <p>Because the model omits several important municipal and physical drivers, including sewer network topology, pipe age, maintenance history, rainfall, slope, and detailed population exposure, any driver statements should be interpreted cautiously. Residual spatial structure would suggest that these omitted factors still explain meaningful variation.</p>
 
-        <h2>8. Runtime and resource awareness</h2>
+        <h2>9. Runtime and resource awareness</h2>
         {runtime_df.to_html(index=False)}
 
-        <h2>9. Reproducibility</h2>
+        <h2>10. Reproducibility</h2>
         <p>All outputs are written under <code>{output_dir}</code>, including metrics, figures, predictions, coefficients, timing logs, and this HTML report. The script is intended to run end-to-end with a single command and no manual interaction.</p>
     </body>
     </html>
@@ -344,7 +385,8 @@ def main() -> None:
     t0 = time.time()
     df = load_features()
     df = make_model_table(df)
-    feature_cols = get_feature_cols()
+    baseline_feature_cols = get_baseline_feature_cols()
+    improved_feature_cols = get_improved_feature_cols()
     runtime_rows.append({"step": "load_and_prepare_features", "seconds": time.time() - t0})
 
     t0 = time.time()
@@ -361,26 +403,36 @@ def main() -> None:
     )
 
     t0 = time.time()
-    baseline_model, baseline_metrics_val = fit_baseline_poisson(train_df, val_df, feature_cols)
+    baseline_model, baseline_metrics_val = fit_poisson_model(train_df, val_df, baseline_feature_cols)
     runtime_rows.append({"step": "baseline_training_and_validation", "seconds": time.time() - t0})
 
     t0 = time.time()
-    improved_model_val, improved_metrics_val, coef_df_val = fit_improved_nb_glm(train_df, val_df, feature_cols)
+    improved_model, improved_metrics_val = fit_poisson_model(train_df, val_df, improved_feature_cols)
     runtime_rows.append({"step": "improved_training_and_validation", "seconds": time.time() - t0})
+
+    t0 = time.time()
+    sensitivity_model_val, sensitivity_metrics_val, coef_df_val = fit_nb_glm(train_df, val_df, improved_feature_cols)
+    runtime_rows.append({"step": "sensitivity_nb_training_and_validation", "seconds": time.time() - t0})
 
     train_val_df = pd.concat([train_df, val_df], ignore_index=True)
 
     t0 = time.time()
-    baseline_model, baseline_metrics_test, baseline_test_pred = refit_and_test(
-        baseline_model, feature_cols, train_val_df, test_df
+    baseline_model, baseline_metrics_test, baseline_test_pred = refit_poisson_and_test(
+        baseline_model, baseline_feature_cols, train_val_df, test_df
     )
     runtime_rows.append({"step": "baseline_refit_and_test", "seconds": time.time() - t0})
 
     t0 = time.time()
-    improved_model_test, improved_metrics_test, coef_df_test, improved_test_pred = refit_nb_and_test(
-        train_val_df, test_df, feature_cols
+    improved_model, improved_metrics_test, improved_test_pred = refit_poisson_and_test(
+        improved_model, improved_feature_cols, train_val_df, test_df
     )
     runtime_rows.append({"step": "improved_refit_and_test", "seconds": time.time() - t0})
+
+    t0 = time.time()
+    sensitivity_model_test, sensitivity_metrics_test, coef_df_test, sensitivity_test_pred = refit_nb_and_test(
+        train_val_df, test_df, improved_feature_cols
+    )
+    runtime_rows.append({"step": "sensitivity_nb_refit_and_test", "seconds": time.time() - t0})
 
     save_scatter(
         test_df[TARGET_COL].values,
@@ -408,23 +460,27 @@ def main() -> None:
     test_predictions = test_df[["h3_level8_index", TARGET_COL]].copy()
     test_predictions["baseline_prediction"] = baseline_test_pred
     test_predictions["improved_prediction"] = improved_test_pred
+    test_predictions["sensitivity_nb_prediction"] = sensitivity_test_pred
     test_predictions["improved_residual"] = test_predictions[TARGET_COL] - test_predictions["improved_prediction"]
     test_predictions.to_csv(report_dir / "test_predictions.csv", index=False)
 
-    coef_df_test.to_csv(report_dir / "improved_model_coefficients.csv", index=False)
+    coef_df_test.to_csv(report_dir / "sensitivity_nb_coefficients.csv", index=False)
     data_summary.to_csv(report_dir / "data_summary.csv", index=False)
     pd.DataFrame(runtime_rows).to_csv(report_dir / "runtime_log.csv", index=False)
 
     save_html_report(
         output_dir=report_dir,
         data_summary=data_summary,
+        baseline_feature_cols=baseline_feature_cols,
+        improved_feature_cols=improved_feature_cols,
         baseline_metrics_val=baseline_metrics_val,
         baseline_metrics_test=baseline_metrics_test,
         improved_metrics_val=improved_metrics_val,
         improved_metrics_test=improved_metrics_test,
+        sensitivity_metrics_val=sensitivity_metrics_val,
+        sensitivity_metrics_test=sensitivity_metrics_test,
         coef_df=coef_df_test,
         runtime_rows=runtime_rows,
-        feature_cols=feature_cols,
     )
 
 
