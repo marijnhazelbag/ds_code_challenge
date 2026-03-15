@@ -16,7 +16,7 @@ from PIL import Image
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from cct_ds_challenge.train_cv_2 import RunConfig
+    from cct_ds_challenge.train_cv import RunConfig
 
 # ============================================================
 # REPORTING
