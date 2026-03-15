@@ -2,4 +2,8 @@
 set -e
 
 echo "Running computer vision workflow..."
-# add commands here later
+
+python src/cct_ds_challenge/train_cv.py \
+    --config configs/cv/default.yaml
+
+echo "CV workflow complete."

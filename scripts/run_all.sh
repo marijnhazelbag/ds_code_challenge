@@ -6,7 +6,6 @@ echo "Running both workflows in sequence."
 echo "Downloading raw challenge data from the public City of Cape Town challenge S3 bucket."
 bash scripts/download_data.sh
 
-echo "Currently running computer vision workflow."
 bash scripts/run_cv.sh
 
 echo "Currently running service request workflow."
