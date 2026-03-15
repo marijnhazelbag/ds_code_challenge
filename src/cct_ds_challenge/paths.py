@@ -10,6 +10,25 @@ DATA_PROCESSED = DATA_DIR / "processed"
 RAW_SERVICE_REQUESTS = DATA_RAW / "service_requests"
 RAW_SWIMMING_POOLS = DATA_RAW / "swimming_pools"
 
+# --- Service request dataset paths ---
+
+SR_HEX = RAW_SERVICE_REQUESTS / "sr_hex.csv.gz"
+SR = RAW_SERVICE_REQUESTS / "sr.csv.gz"
+SR_HEX_TRUNCATED = RAW_SERVICE_REQUESTS / "sr_hex_truncated.csv"
+
+CITY_HEX_POLYGONS_8 = RAW_SERVICE_REQUESTS / "city-hex-polygons-8.geojson"
+CITY_HEX_POLYGONS_8_10 = RAW_SERVICE_REQUESTS / "city-hex-polygons-8-10.geojson"
+
+# --- Google buildings data ---
+
+GOOGLE_BUILDINGS_RAW = DATA_EXTERNAL / "1dd_buildings.csv.gz"
+
+# --- Processed feature outputs ---
+
+SR_TYPE_HEX_COUNTS = DATA_PROCESSED / "sr_type_hex_counts.csv"
+HEX_BUILDING_FEATURES = DATA_PROCESSED / "hex_building_features.csv"
+SEWER_HEX_FEATURES = DATA_PROCESSED / "sewer_hex_features.csv"
+
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORTS_EXPORTS = REPORTS_DIR / "exports"
