@@ -45,6 +45,11 @@ The challenge README states that the provided AWS credentials do not grant speci
 Run:
 ./scripts/download_data.sh
 
+## External data
+
+The Google Open Buildings dataset was downloaded, too big for repo, no time to do programmatically. Filtered to the Cape Town boundary using filter_google_buildings.py.
+The resulting subset (1dd_buildings_cape_town.csv.gz, ~50 MB) is included in the repository to ensure the pipeline runs without requiring large external downloads.
+
 ## Repository structure
 
 data  

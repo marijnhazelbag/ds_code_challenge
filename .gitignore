@@ -4,5 +4,7 @@ __pycache__
 .ipynb_checkpoints
 .DS_Store
 
-data
+data/raw
+data/external/1dd_buildings.csv.gz
+data/processed
 reports/*
