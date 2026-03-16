@@ -10,6 +10,8 @@ reports/*
 !reports/cv/
 reports/cv/*
 !reports/cv/cv_report.html
+!reports/cv/figures/
 !reports/sr/
 reports/sr/*
 !reports/sr/sr_report.html
+!reports/sr/figures/
