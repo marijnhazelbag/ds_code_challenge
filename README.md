@@ -176,6 +176,8 @@ reports/cv/cv_report.html
 
 ### Service request modelling
 
+Exploratory notebook sr_eda.ipynb contains a good exploration of the data.
+
 Outputs from the service request modelling workflow are written to:
 
 reports/sr/
