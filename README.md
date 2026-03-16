@@ -174,6 +174,8 @@ reports/cv/baseline_metrics.csv
 reports/cv/improved_metrics.csv
 reports/cv/cv_report.html
 
+The HTML reports reference local figure files. For full rendering, please view them from a cloned copy of the repository rather than downloading the HTML file in isolation.
+
 ### Service request modelling
 
 Exploratory notebook sr_eda.ipynb contains a good exploration of the data.
@@ -181,6 +183,8 @@ Exploratory notebook sr_eda.ipynb contains a good exploration of the data.
 Outputs from the service request modelling workflow are written to:
 
 reports/sr/
+
+The HTML reports reference local figure files. For full rendering, please view them from a cloned copy of the repository rather than downloading the HTML file in isolation.
 
 This includes the generated modelling report and supporting figures.
 
